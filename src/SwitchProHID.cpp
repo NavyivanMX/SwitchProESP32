@@ -44,6 +44,14 @@
 
 static const char* TAG = "SwitchProHID";
 
+// ============================================================
+// Constructor
+// ============================================================
+
+SwitchProHID::SwitchProHID()
+    : m_inputReport()
+{
+}
 
 // ============================================================
 // HID CALLBACK
@@ -87,6 +95,9 @@ static void hidCallback(
     );
 }
 
+// ============================================================
+// sendInputReport()
+// ============================================================
 
 // ============================================================
 // HID REPORT MAP
@@ -101,7 +112,6 @@ static void hidCallback(
 // posterior.
 //
 // ============================================================
-
 
 
 
@@ -498,6 +508,78 @@ appParam.desc_list_len =
     return true;
 }
 
+// ============================================================
+// sendInputReport()
+// ============================================================
+
+bool
+SwitchProHID::sendInputReport(
+    const SwitchProControllerState& state
+)
+{
+    // --------------------------------------------------------
+    // Construir reporte
+    // --------------------------------------------------------
+
+    const size_t reportSize =
+        m_inputReport.build(state);
+
+
+    if (reportSize == 0)
+    {
+        ESP_LOGE(
+            TAG,
+            "Failed to build HID input report"
+        );
+
+        return false;
+    }
+
+
+    // --------------------------------------------------------
+    // Mostrar información de depuración
+    // --------------------------------------------------------
+
+    ESP_LOGD(
+        TAG,
+        "HID input report built (%u bytes)",
+        static_cast<unsigned>(reportSize)
+    );
+
+
+    ESP_LOGD(
+        TAG,
+        "Report: "
+        "%02X %02X %02X %02X "
+        "%02X %02X %02X %02X "
+        "%02X %02X %02X %02X",
+
+        m_inputReport.data()[0],
+        m_inputReport.data()[1],
+        m_inputReport.data()[2],
+        m_inputReport.data()[3],
+        m_inputReport.data()[4],
+        m_inputReport.data()[5],
+        m_inputReport.data()[6],
+        m_inputReport.data()[7],
+        m_inputReport.data()[8],
+        m_inputReport.data()[9],
+        m_inputReport.data()[10],
+        m_inputReport.data()[11]
+    );
+
+
+    // --------------------------------------------------------
+    // IMPORTANTE:
+    //
+    // Todavía NO enviamos por Bluetooth.
+    //
+    // Esta etapa solamente verifica que SwitchProHID pueda
+    // construir correctamente el Input Report.
+    // --------------------------------------------------------
+
+    return true;
+}
 
 // ============================================================
 // update()

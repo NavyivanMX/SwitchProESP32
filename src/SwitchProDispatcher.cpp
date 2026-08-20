@@ -4,10 +4,16 @@
 // Archivo : SwitchProDispatcher.cpp
 // Función : Implementación del Response Dispatcher.
 //
-// ETAPA 5.8.5
+// ETAPA 5.8.7
+//
+// Integra los diferentes handlers de protocolo con el
+// Response Builder.
+//
 // ============================================================
 
 #include "SwitchProDispatcher.h"
+
+#include "SwitchProDeviceInfo.h"
 
 
 // ============================================================
@@ -53,7 +59,7 @@ bool SwitchProDispatcher::process(
 
 
     // ========================================================
-    // Entregar el paquete al parser
+    // Entregar paquete al protocolo
     // ========================================================
 
     if (
@@ -76,16 +82,43 @@ bool SwitchProDispatcher::process(
 
 
     // ========================================================
-    // Por ahora solamente reconocemos el Subcommand.
-    //
-    // La construcción de respuestas específicas llegará en
-    // las siguientes etapas.
+    // Procesar Subcommand
     // ========================================================
 
     switch (subcommand)
     {
-        case 0x01:
+        // ----------------------------------------------------
+        // Device Info
+        // ----------------------------------------------------
+
         case 0x02:
+        {
+            uint8_t deviceInfo[16];
+
+            const size_t infoSize =
+                SwitchProDeviceInfo::build(
+                    deviceInfo,
+                    sizeof(deviceInfo)
+                );
+
+
+            m_response.build(
+                subcommand,
+                deviceInfo,
+                infoSize
+            );
+
+            m_hasResponse = true;
+
+            return true;
+        }
+
+
+        // ----------------------------------------------------
+        // Comandos conocidos pero todavía no implementados.
+        // ----------------------------------------------------
+
+        case 0x01:
         case 0x03:
         case 0x04:
         case 0x10:
@@ -94,13 +127,7 @@ bool SwitchProDispatcher::process(
         case 0x40:
         case 0x41:
         case 0x48:
-
-            // ------------------------------------------------
-            // El comando es conocido.
-            //
-            // Todavía no generamos su payload definitivo.
-            // ------------------------------------------------
-
+        {
             m_response.build(
                 subcommand,
                 nullptr,
@@ -110,14 +137,14 @@ bool SwitchProDispatcher::process(
             m_hasResponse = true;
 
             return true;
+        }
 
+
+        // ----------------------------------------------------
+        // Desconocido
+        // ----------------------------------------------------
 
         default:
-
-            // ------------------------------------------------
-            // Subcommand desconocido.
-            // ------------------------------------------------
-
             return false;
     }
 }
