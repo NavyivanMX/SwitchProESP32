@@ -162,31 +162,41 @@ SwitchProController::update()
 
 
     // ============================================================
-    // updateReport()
-    // ============================================================
-    //
-    // Genera el Input Report utilizando el estado actual.
-    //
-    // ============================================================
+// updateReport()
+// ============================================================
+//
+// Genera y envía el Input Report.
+//
+// IMPORTANTE:
+// sendInputReport() puede devolver false porque:
+//
+//   - todavía no hay conexión HID
+//   - el reporte anterior todavía está siendo enviado
+//   - ocurrió un error real al enviar
+//
+// Por eso NO debemos llamarlo:
+// "Failed to build HID input report".
+//
 
-    void
-    SwitchProController::updateReport()
+void
+SwitchProController::updateReport()
+{
+    if (m_hid == nullptr)
     {
-        if (m_hid == nullptr)
-        {
-            return;
-        }
-
-
-        if (!m_hid->sendInputReport(m_state))
-        {
-            ESP_LOGW(
-                TAG,
-                "Failed to build HID input report"
-            );
-        }
+        return;
     }
 
+    if (!m_hid->sendInputReport(m_state))
+    {
+        // ----------------------------------------------------
+        // No mostramos error aquí.
+        //
+        // En esta etapa es normal que todavía no exista
+        // una conexión HID con la Nintendo Switch.
+        // ----------------------------------------------------
+        return;
+    }
+}
 // ============================================================
 // state()
 // ============================================================

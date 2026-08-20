@@ -3,29 +3,6 @@
 // ------------------------------------------------------------
 // Archivo : SwitchProHID.h
 // Función : Capa Bluetooth HID.
-//
-// ETAPA 5.8.20
-//
-// Objetivo:
-//   - Inicializar Bluetooth Classic.
-//   - Inicializar Bluedroid.
-//   - Inicializar HID Device.
-//   - Registrar aplicación HID.
-//   - Observar eventos HID.
-//   - Observar Output Reports recibidos.
-//
-// IMPORTANTE:
-//
-//   Todavía NO implementamos:
-//   - Handshake Nintendo.
-//   - Subcommands.
-//   - Rumble.
-//   - Joysticks.
-//   - Botones.
-//   - Envío periódico de Input Reports.
-//
-//   En esta etapa queremos descubrir exactamente qué
-//   información envía el host durante la conexión.
 // ============================================================
 
 #pragma once
@@ -34,38 +11,20 @@
 #include "SwitchProInputReport.h"
 
 #include "esp_hidd_api.h"
+#include "esp_gap_bt_api.h"
 
 
 class SwitchProHID
 {
 public:
 
-    // ========================================================
-    // Constructor
-    // ========================================================
-
     SwitchProHID();
 
-
-    // ========================================================
-    // Inicialización
-    // ========================================================
-
     bool begin();
-
-
-    // ========================================================
-    // HID Input Report
-    // ========================================================
 
     bool sendInputReport(
         const SwitchProControllerState& state
     );
-
-
-    // ========================================================
-    // Actualización
-    // ========================================================
 
     void update();
 
@@ -73,7 +32,7 @@ public:
 private:
 
     // ========================================================
-    // Input Report Builder
+    // Input Report
     // ========================================================
 
     SwitchProInputReport m_inputReport;
@@ -89,11 +48,49 @@ private:
 
 
     // ========================================================
+    // GAP
+    // ========================================================
+
+    bool initBluetoothGAP();
+
+
+    // ========================================================
     // HID
     // ========================================================
 
     bool initHID();
 
+
+    // ========================================================
+    // GAP callback
+    // ========================================================
+
+    static void gapCallback(
+        esp_bt_gap_cb_event_t event,
+        esp_bt_gap_cb_param_t* param
+    );
+
+
+    // ========================================================
+    // HID events
+    // ========================================================
+
+    static void handleOutputReport(
+        const esp_hidd_cb_param_t* param
+    );
+
+    static void handleGetReport(
+        const esp_hidd_cb_param_t* param
+    );
+
+
+
+    // ========================================================
+    // Estado de conexión HID
+    // ========================================================
+
+    static volatile bool s_hidConnected;
+    static volatile bool s_reportBusy;
 
     // ========================================================
     // HID Callback
@@ -104,12 +101,32 @@ private:
         esp_hidd_cb_param_t* param
     );
 
-
     // ========================================================
-    // HID Output Report
+    // HID eventos recibidos
     // ========================================================
 
-    static void handleOutputReport(
+
+    static void handleSetReport(
         const esp_hidd_cb_param_t* param
     );
+
+    static void handleSetProtocol(
+        const esp_hidd_cb_param_t* param
+    );
+
+    static void handleInterruptData(
+        const esp_hidd_cb_param_t* param
+    );
+
+    static void handleOpen(
+        const esp_hidd_cb_param_t* param
+    );
+
+    static void handleClose(
+        const esp_hidd_cb_param_t* param
+    );
+
+    static void handleSendReport(
+        const esp_hidd_cb_param_t* param
+    );    
 };

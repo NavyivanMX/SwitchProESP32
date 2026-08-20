@@ -11,357 +11,240 @@
 // ============================================================
 
 #include "SwitchProInputReport.h"
-
+#include "esp_log.h"
 #include <string.h>
 
 
+static const char* TAG_INPUT_REPORT = "SwitchProInputReport";
 // ============================================================
 // Constructor
 // ============================================================
 
 SwitchProInputReport::SwitchProInputReport()
+: m_data{},
+m_size(0)
 {
-    reset();
 }
 
-
 // ============================================================
-// reset()
+// CLEAR
 // ============================================================
 
-void SwitchProInputReport::reset()
+void SwitchProInputReport::clear()
 {
-    memset(
-        m_buffer,
-        0,
-        sizeof(m_buffer)
-    );
+memset(
+m_data,
+0,
+sizeof(m_data)
+);
 
-    m_size = 0;
+m_size = 0;
+
 }
 
-
 // ============================================================
-// build()
+// BUILD
 // ============================================================
 
-size_t
-SwitchProInputReport::build(
+size_t SwitchProInputReport::build(
     const SwitchProControllerState& state
 )
 {
-    reset();
+    (void)state;
 
+    clear();
 
-    // ========================================================
-    // Report ID
-    // ========================================================
+    m_data[0] = ReportId;
 
-    m_buffer[0] = 0x30;
+    m_data[1] = 0x00;
 
+    m_data[2] = 0x90;
 
-    // ========================================================
-    // Timer
-    // ========================================================
-    //
-    // Por ahora utilizamos un valor estático.
-    //
-    // Posteriormente lo convertiremos en un contador real.
-    //
-    // ========================================================
+    // Botones
+    m_data[3] = 0x00;
+    m_data[4] = 0x00;
+    m_data[5] = 0x00;
 
-    m_buffer[1] = 0x00;
+    // Stick izquierdo centrado
+    const uint16_t leftX = 0x800;
+    const uint16_t leftY = 0x800;
 
+    m_data[6] =
+        static_cast<uint8_t>(leftX & 0xFF);
 
-    // ========================================================
-    // Battery / Connection
-    // ========================================================
-    //
-    // High nibble:
-    //     nivel de batería.
-    //
-    // Low nibble:
-    //     información de conexión.
-    //
-    // Para nuestro estado inicial:
-    //
-    //     batería llena
-    //     controlador tipo Pro
-    //
-    // ========================================================
-
-    uint8_t batteryLevel =
-        state.batteryLevel();
-
-    uint8_t batteryNibble = 0x8;
-
-    if (batteryLevel >= 75)
-    {
-        batteryNibble = 0x8;
-    }
-    else if (batteryLevel >= 50)
-    {
-        batteryNibble = 0x6;
-    }
-    else if (batteryLevel >= 25)
-    {
-        batteryNibble = 0x4;
-    }
-    else if (batteryLevel > 0)
-    {
-        batteryNibble = 0x2;
-    }
-    else
-    {
-        batteryNibble = 0x0;
-    }
-
-
-    // Pro Controller / normal connection information.
-    constexpr uint8_t ConnectionInfo = 0x00;
-
-    m_buffer[2] =
+    m_data[7] =
         static_cast<uint8_t>(
-            (batteryNibble << 4) |
-            ConnectionInfo
+            ((leftX >> 8) & 0x0F) |
+            ((leftY & 0x0F) << 4)
         );
 
+    m_data[8] =
+        static_cast<uint8_t>(
+            (leftY >> 4) & 0xFF
+        );
 
-    // ========================================================
-    // Botones
-    // ========================================================
+    // Stick derecho centrado
+    const uint16_t rightX = 0x800;
+    const uint16_t rightY = 0x800;
 
-    encodeButtons(
-        state.buttons()
-    );
+    m_data[9] =
+        static_cast<uint8_t>(rightX & 0xFF);
 
+    m_data[10] =
+        static_cast<uint8_t>(
+            ((rightX >> 8) & 0x0F) |
+            ((rightY & 0x0F) << 4)
+        );
 
-    // ========================================================
-    // Left Stick
-    // ========================================================
+    m_data[11] =
+        static_cast<uint8_t>(
+            (rightY >> 4) & 0xFF
+        );
 
-    encodeStick(
-        6,
-        state.leftStick()
-    );
-
-
-    // ========================================================
-    // Right Stick
-    // ========================================================
-
-    encodeStick(
-        9,
-        state.rightStick()
-    );
-
-
-    // ========================================================
-    // Vibration status
-    // ========================================================
-
-    m_buffer[12] = 0x00;
-
-
-    // ========================================================
-    // IMU
-    // ========================================================
-    //
-    // Todavía no tenemos IMU.
-    //
-    // Los bytes restantes permanecen en cero.
-    //
-    // Más adelante implementaremos acelerómetro y giroscopio.
-    //
-    // ========================================================
-
-
-    // ========================================================
-    // Report size
-    // ========================================================
-
+    // Reporte completo
     m_size = ReportSize;
 
-    return m_size;
+ESP_LOGI(
+    TAG_INPUT_REPORT,
+    "BUILD OK: m_size=%u ReportSize=%u",
+    static_cast<unsigned>(m_size),
+    static_cast<unsigned>(ReportSize)
+);
+
+return m_size;
 }
 
-
 // ============================================================
-// encodeButtons()
+// ENCODE BUTTONS
 // ============================================================
 
-void
-SwitchProInputReport::encodeButtons(
-    const SwitchProControllerState::Buttons& buttons
+void SwitchProInputReport::encodeButtons(
+const SwitchProControllerState& state
 )
 {
-    // ========================================================
-    // Byte 3
-    //
-    // Y X B A SR SL R ZR
-    // ========================================================
+// --------------------------------------------------------
+// IMPORTANTE
+//
+// Esta sección depende de los nombres exactos que tenga
+// SwitchProControllerState.
+//
+// Para evitar romper la compilación si todavía estamos
+// desarrollando esa estructura, inicialmente dejamos
+// los bytes en cero.
+//
+// La estructura HID ya queda lista para que después
+// conectemos los botones reales.
+// --------------------------------------------------------
 
-    if (buttons.Y)
-        m_buffer[3] |= (1 << 0);
+(void)state;
 
-    if (buttons.X)
-        m_buffer[3] |= (1 << 1);
+m_data[3] = 0x00;
+m_data[4] = 0x00;
+m_data[5] = 0x00;
 
-    if (buttons.B)
-        m_buffer[3] |= (1 << 2);
-
-    if (buttons.A)
-        m_buffer[3] |= (1 << 3);
-
-    if (buttons.R)
-        m_buffer[3] |= (1 << 6);
-
-    if (buttons.ZR)
-        m_buffer[3] |= (1 << 7);
-
-
-    // ========================================================
-    // Byte 4
-    //
-    // Minus Plus RStick LStick Home Capture
-    // ========================================================
-
-    if (buttons.Minus)
-        m_buffer[4] |= (1 << 0);
-
-    if (buttons.Plus)
-        m_buffer[4] |= (1 << 1);
-
-    if (buttons.RStick)
-        m_buffer[4] |= (1 << 2);
-
-    if (buttons.LStick)
-        m_buffer[4] |= (1 << 3);
-
-    if (buttons.Home)
-        m_buffer[4] |= (1 << 4);
-
-    if (buttons.Capture)
-        m_buffer[4] |= (1 << 5);
-
-
-    // ========================================================
-    // Byte 5
-    //
-    // Down Up Right Left SR SL L ZL
-    // ========================================================
-
-    // Por ahora los botones direccionales no forman parte de
-    // ControllerState.
-    //
-    // Los agregaremos posteriormente.
-
-    if (buttons.L)
-        m_buffer[5] |= (1 << 6);
-
-    if (buttons.ZL)
-        m_buffer[5] |= (1 << 7);
 }
 
-
 // ============================================================
-// encodeStick()
+// ENCODE STICKS
 // ============================================================
 
-void
-SwitchProInputReport::encodeStick(
-    size_t offset,
-    const SwitchProControllerState::Stick& stick
+void SwitchProInputReport::encodeSticks(
+const SwitchProControllerState& state
 )
 {
-    // ========================================================
-    // Convertir rango lógico
-    //
-    // Nuestro ControllerState utiliza:
-    //
-    //     -2048 ... +2047
-    //
-    // El Pro Controller utiliza:
-    //
-    //     0 ... 4095
-    //
-    // ========================================================
+// --------------------------------------------------------
+// Igual que con los botones:
+//
+// primero queremos conseguir que la Switch acepte
+// el dispositivo.
+//
+// Los sticks se conectarán después con los nombres
+// reales de SwitchProControllerState.
+// --------------------------------------------------------
 
-    int32_t x =
-        static_cast<int32_t>(stick.x) + 2048;
-
-    int32_t y =
-        static_cast<int32_t>(stick.y) + 2048;
+(void)state;
 
 
-    // ========================================================
-    // Limitar
-    // ========================================================
+// --------------------------------------------------------
+// Stick izquierdo
+//
+// Centro aproximado:
+//   X = 0x800
+//   Y = 0x800
+//
+// 12 bits por eje.
+// --------------------------------------------------------
 
-    if (x < 0)
-        x = 0;
-
-    if (x > 4095)
-        x = 4095;
-
-    if (y < 0)
-        y = 0;
-
-    if (y > 4095)
-        y = 4095;
+const uint16_t leftX = 0x800;
+const uint16_t leftY = 0x800;
 
 
-    // ========================================================
-    // Empaquetado Nintendo 12-bit
-    // ========================================================
-    //
-    // Byte 0:
-    //     X bits 0-7
-    //
-    // Byte 1:
-    //     X bits 8-11
-    //     Y bits 0-3
-    //
-    // Byte 2:
-    //     Y bits 4-11
-    //
-    // ========================================================
+m_data[6] =
+    static_cast<uint8_t>(
+        leftX & 0xFF
+    );
 
-    m_buffer[offset + 0] =
-        static_cast<uint8_t>(
-            x & 0xFF
-        );
+m_data[7] =
+    static_cast<uint8_t>(
+        ((leftX >> 8) & 0x0F) |
+        ((leftY & 0x0F) << 4)
+    );
 
-    m_buffer[offset + 1] =
-        static_cast<uint8_t>(
-            ((x >> 8) & 0x0F) |
-            ((y & 0x0F) << 4)
-        );
+m_data[8] =
+    static_cast<uint8_t>(
+        (leftY >> 4) & 0xFF
+    );
 
-    m_buffer[offset + 2] =
-        static_cast<uint8_t>(
-            (y >> 4) & 0xFF
-        );
+
+// --------------------------------------------------------
+// Stick derecho
+// --------------------------------------------------------
+
+const uint16_t rightX = 0x800;
+const uint16_t rightY = 0x800;
+
+
+m_data[9] =
+    static_cast<uint8_t>(
+        rightX & 0xFF
+    );
+
+m_data[10] =
+    static_cast<uint8_t>(
+        ((rightX >> 8) & 0x0F) |
+        ((rightY & 0x0F) << 4)
+    );
+
+m_data[11] =
+    static_cast<uint8_t>(
+        (rightY >> 4) & 0xFF
+    );
+
 }
 
-
 // ============================================================
-// data()
+// DATA
 // ============================================================
 
-const uint8_t*
-SwitchProInputReport::data() const
+const uint8_t* SwitchProInputReport::data() const
 {
-    return m_buffer;
+return m_data;
 }
 
-
 // ============================================================
-// size()
+// MUTABLE DATA
 // ============================================================
 
-size_t
-SwitchProInputReport::size() const
+uint8_t* SwitchProInputReport::mutableData()
 {
-    return m_size;
+return m_data;
+}
+
+// ============================================================
+// SIZE
+// ============================================================
+
+size_t SwitchProInputReport::size() const
+{
+return m_size;
 }
