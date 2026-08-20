@@ -2,17 +2,8 @@
 // SwitchProESP32
 // ------------------------------------------------------------
 // Archivo : main.cpp
+// Etapa   : 5.8.14
 // Función : Punto de entrada principal del firmware.
-//
-// ETAPA 5.4
-//   Bluetooth Classic.
-//
-// Framework:
-//   ESP-IDF
-//
-// Punto de entrada:
-//
-//   app_main()
 // ============================================================
 
 #include "SwitchProController.h"
@@ -22,41 +13,52 @@
 
 
 // ============================================================
+// Controlador principal
+// ============================================================
+
+static SwitchProController g_controller;
+
+
+// ============================================================
 // app_main()
 // ============================================================
 
-extern "C" void app_main()
+extern "C"
+void app_main()
 {
-    SwitchProController controller;
+    // ========================================================
+    // Inicializar controlador
+    // ========================================================
 
-
-    // --------------------------------------------------------
-    // Inicialización
-    // --------------------------------------------------------
-
-    if (!controller.begin())
+    if (!g_controller.begin())
     {
-        while (true)
-        {
-            // --------------------------------------------
-            // Error fatal de inicialización.
-            //
-            // Por ahora dejamos el sistema detenido.
-            // --------------------------------------------
-
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+        return;
     }
 
 
-    // --------------------------------------------------------
-    // Loop principal
-    // --------------------------------------------------------
+    // ========================================================
+    // Bucle principal
+    // ========================================================
 
     while (true)
     {
-        controller.update();
+        g_controller.update();
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+
+        // ====================================================
+        // Ceder el CPU
+        // ====================================================
+        //
+        // CONFIG_FREERTOS_HZ = 1000
+        //
+        // Por lo tanto:
+        //
+        //     1 tick = 1 ms
+        //
+        // ====================================================
+
+        vTaskDelay(
+            pdMS_TO_TICKS(1)
+        );
     }
 }

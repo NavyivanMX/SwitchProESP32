@@ -4,28 +4,12 @@
 // Archivo : SwitchProHID.cpp
 // Función : Implementación Bluetooth HID.
 //
-// ETAPA 5.5
-//   Inicialización de Bluetooth HID.
+// ETAPA 5.8.20
 //
-// Arquitectura:
+// Objetivo:
+//   Observar la comunicación HID recibida desde el host.
 //
-//   Bluetooth Controller
-//          ↓
-//      Bluedroid
-//          ↓
-//       HID Device
-//
-// IMPORTANTE:
-//
-//   En esta etapa todavía NO implementamos:
-//   - Descriptor HID definitivo
-//   - Reportes del Pro Controller
-//   - Botones
-//   - Joysticks
-//   - Pairing con Nintendo Switch
-//
-// El objetivo es únicamente comprobar que el ESP32
-// puede inicializar correctamente Bluetooth HID.
+// Todavía NO implementamos respuestas del protocolo Nintendo.
 // ============================================================
 
 #include "SwitchProHID.h"
@@ -44,6 +28,7 @@
 
 static const char* TAG = "SwitchProHID";
 
+
 // ============================================================
 // Constructor
 // ============================================================
@@ -53,66 +38,127 @@ SwitchProHID::SwitchProHID()
 {
 }
 
+
 // ============================================================
 // HID CALLBACK
 // ============================================================
-//
-// Este callback recibirá los eventos generados por el
-// dispositivo HID.
-//
-// Por ahora solamente los mostramos en el monitor serial.
-//
-// Más adelante aquí manejaremos eventos como:
-//
-//   - conexión
-//   - desconexión
-//   - handshake
-//   - control de protocolo
-//   - envío de reportes
-//
-// ============================================================
 
-static void hidCallback(
+void SwitchProHID::hidCallback(
     esp_hidd_cb_event_t event,
     esp_hidd_cb_param_t* param)
 {
-    if (param == nullptr)
-    {
-        ESP_LOGI(
-            TAG,
-            "HID event: %d",
-            static_cast<int>(event)
-        );
-
-        return;
-    }
-
+    // --------------------------------------------------------
+    // Mostrar siempre el evento recibido.
+    // --------------------------------------------------------
 
     ESP_LOGI(
         TAG,
         "HID event: %d",
         static_cast<int>(event)
     );
+
+
+    // --------------------------------------------------------
+    // Si no tenemos parámetros, terminamos.
+    // --------------------------------------------------------
+
+    if (param == nullptr)
+    {
+        ESP_LOGW(
+            TAG,
+            "HID event has NULL parameter"
+        );
+
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // Output Report
+    // --------------------------------------------------------
+
+    if (event == ESP_HIDD_SET_REPORT_EVT)
+    {
+        handleOutputReport(param);
+    }
 }
 
-// ============================================================
-// sendInputReport()
-// ============================================================
 
 // ============================================================
-// HID REPORT MAP
-// ============================================================
-//
-// Este descriptor es INTENCIONALMENTE mínimo.
-//
-// Describe un dispositivo HID de tipo Game Pad, pero todavía
-// NO representa al Nintendo Switch Pro Controller.
-//
-// El descriptor definitivo lo construiremos en una etapa
-// posterior.
-//
+// HANDLE OUTPUT REPORT
 // ============================================================
 
+void SwitchProHID::handleOutputReport(
+    const esp_hidd_cb_param_t* param)
+{
+    if (param == nullptr)
+    {
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // Información básica del reporte.
+    // --------------------------------------------------------
+
+    ESP_LOGI(
+        TAG,
+        "========================================"
+    );
+
+    ESP_LOGI(
+        TAG,
+        "HID OUTPUT REPORT RECEIVED"
+    );
+
+    ESP_LOGI(
+        TAG,
+        "Report ID: %u",
+        param->set_report.report_id
+    );
+
+    ESP_LOGI(
+        TAG,
+        "Report type: %u",
+        param->set_report.report_type
+    );
+
+    ESP_LOGI(
+        TAG,
+        "Report length: %u",
+        param->set_report.len
+    );
+
+
+    // --------------------------------------------------------
+    // Mostrar bytes recibidos.
+    // --------------------------------------------------------
+
+    if (
+        param->set_report.data != nullptr &&
+        param->set_report.len > 0
+    )
+    {
+        ESP_LOG_BUFFER_HEX(
+            TAG,
+            param->set_report.data,
+            param->set_report.len
+        );
+    }
+    else
+    {
+        ESP_LOGI(
+            TAG,
+            "Report contains no data"
+        );
+    }
+
+
+    ESP_LOGI(
+        TAG,
+        "========================================"
+    );
+}
 
 
 // ============================================================
@@ -214,7 +260,7 @@ bool SwitchProHID::initBluetoothController()
 
 
     // --------------------------------------------------------
-    // Configuración por defecto del Bluetooth Controller
+    // Configuración por defecto
     // --------------------------------------------------------
 
     esp_bt_controller_config_t btConfig =
@@ -360,7 +406,7 @@ bool SwitchProHID::initHID()
 
 
     // --------------------------------------------------------
-    // 1. Registrar callback HID
+    // Registrar callback HID
     // --------------------------------------------------------
 
     esp_err_t result =
@@ -388,7 +434,7 @@ bool SwitchProHID::initHID()
 
 
     // --------------------------------------------------------
-    // 2. Inicializar HID Device
+    // Inicializar HID Device
     // --------------------------------------------------------
 
     result =
@@ -414,7 +460,7 @@ bool SwitchProHID::initHID()
 
 
     // --------------------------------------------------------
-    // 3. Parámetros de la aplicación HID
+    // Parámetros de aplicación HID
     // --------------------------------------------------------
 
     esp_hidd_app_param_t appParam{};
@@ -441,15 +487,6 @@ bool SwitchProHID::initHID()
     // --------------------------------------------------------
     // Subclass
     // --------------------------------------------------------
-    //
-    // 0x04 = Game Pad
-    //
-    // IMPORTANTE:
-    // Todavía no estamos afirmando que esto sea un
-    // Nintendo Switch Pro Controller.
-    //
-    // La identidad definitiva vendrá después.
-    // --------------------------------------------------------
 
     appParam.subclass = 0x04;
 
@@ -458,16 +495,18 @@ bool SwitchProHID::initHID()
     // Report Map
     // --------------------------------------------------------
 
-appParam.desc_list =
-    const_cast<uint8_t*>(
-        SwitchProDescriptor::ReportMap
-    );
+    appParam.desc_list =
+        const_cast<uint8_t*>(
+            SwitchProDescriptor::ReportMap
+        );
 
-appParam.desc_list_len =
-    SwitchProDescriptor::ReportMapSize;
+
+    appParam.desc_list_len =
+        SwitchProDescriptor::ReportMapSize;
+
 
     // --------------------------------------------------------
-    // 4. QoS
+    // QoS
     // --------------------------------------------------------
 
     esp_hidd_qos_param_t inQos{};
@@ -476,7 +515,7 @@ appParam.desc_list_len =
 
 
     // --------------------------------------------------------
-    // 5. Registrar aplicación HID
+    // Registrar aplicación HID
     // --------------------------------------------------------
 
     result =
@@ -508,12 +547,12 @@ appParam.desc_list_len =
     return true;
 }
 
+
 // ============================================================
 // sendInputReport()
 // ============================================================
 
-bool
-SwitchProHID::sendInputReport(
+bool SwitchProHID::sendInputReport(
     const SwitchProControllerState& state
 )
 {
@@ -536,10 +575,6 @@ SwitchProHID::sendInputReport(
     }
 
 
-    // --------------------------------------------------------
-    // Mostrar información de depuración
-    // --------------------------------------------------------
-
     ESP_LOGD(
         TAG,
         "HID input report built (%u bytes)",
@@ -547,39 +582,9 @@ SwitchProHID::sendInputReport(
     );
 
 
-    ESP_LOGD(
-        TAG,
-        "Report: "
-        "%02X %02X %02X %02X "
-        "%02X %02X %02X %02X "
-        "%02X %02X %02X %02X",
-
-        m_inputReport.data()[0],
-        m_inputReport.data()[1],
-        m_inputReport.data()[2],
-        m_inputReport.data()[3],
-        m_inputReport.data()[4],
-        m_inputReport.data()[5],
-        m_inputReport.data()[6],
-        m_inputReport.data()[7],
-        m_inputReport.data()[8],
-        m_inputReport.data()[9],
-        m_inputReport.data()[10],
-        m_inputReport.data()[11]
-    );
-
-
-    // --------------------------------------------------------
-    // IMPORTANTE:
-    //
-    // Todavía NO enviamos por Bluetooth.
-    //
-    // Esta etapa solamente verifica que SwitchProHID pueda
-    // construir correctamente el Input Report.
-    // --------------------------------------------------------
-
     return true;
 }
+
 
 // ============================================================
 // update()
@@ -588,9 +593,8 @@ SwitchProHID::sendInputReport(
 void SwitchProHID::update()
 {
     // --------------------------------------------------------
-    // En esta etapa todavía no enviamos reportes HID.
+    // Por ahora no enviamos Input Reports.
     //
-    // Los eventos Bluetooth/HID son manejados mediante
-    // callbacks.
+    // Los eventos HID llegan mediante hidCallback().
     // --------------------------------------------------------
 }
