@@ -2,23 +2,37 @@
 // SwitchProESP32
 // ------------------------------------------------------------
 // Archivo : SwitchProHID.cpp
-// Función : Implementación de Bluetooth Classic.
+// Función : Implementación Bluetooth HID.
 //
-// ETAPA 5.4
-//   Inicialización del sistema Bluetooth.
+// ETAPA 5.5
+//   Inicialización de Bluetooth HID.
 //
-// ESP-IDF:
-//   - Bluetooth Controller
-//   - Bluetooth Classic
-//   - Bluedroid
+// Arquitectura:
 //
-// Todavía NO se inicializa HID.
+//   Bluetooth Controller
+//          ↓
+//      Bluedroid
+//          ↓
+//       HID Device
+//
+// IMPORTANTE:
+//
+//   En esta etapa todavía NO implementamos:
+//   - Descriptor HID definitivo
+//   - Reportes del Pro Controller
+//   - Botones
+//   - Joysticks
+//   - Pairing con Nintendo Switch
+//
+// El objetivo es únicamente comprobar que el ESP32
+// puede inicializar correctamente Bluetooth HID.
 // ============================================================
 
 #include "SwitchProHID.h"
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"
+#include "esp_hidd_api.h"
 #include "esp_err.h"
 #include "esp_log.h"
 
@@ -31,15 +45,115 @@ static const char* TAG = "SwitchProHID";
 
 
 // ============================================================
+// HID CALLBACK
+// ============================================================
+//
+// Este callback recibirá los eventos generados por el
+// dispositivo HID.
+//
+// Por ahora solamente los mostramos en el monitor serial.
+//
+// Más adelante aquí manejaremos eventos como:
+//
+//   - conexión
+//   - desconexión
+//   - handshake
+//   - control de protocolo
+//   - envío de reportes
+//
+// ============================================================
+
+static void hidCallback(
+    esp_hidd_cb_event_t event,
+    esp_hidd_cb_param_t* param)
+{
+    if (param == nullptr)
+    {
+        ESP_LOGI(
+            TAG,
+            "HID event: %d",
+            static_cast<int>(event)
+        );
+
+        return;
+    }
+
+
+    ESP_LOGI(
+        TAG,
+        "HID event: %d",
+        static_cast<int>(event)
+    );
+}
+
+
+// ============================================================
+// HID REPORT MAP
+// ============================================================
+//
+// Este descriptor es INTENCIONALMENTE mínimo.
+//
+// Describe un dispositivo HID de tipo Game Pad, pero todavía
+// NO representa al Nintendo Switch Pro Controller.
+//
+// El descriptor definitivo lo construiremos en una etapa
+// posterior.
+//
+// ============================================================
+
+static uint8_t hidReportMap[] =
+{
+    // --------------------------------------------------------
+    // Usage Page: Generic Desktop
+    // --------------------------------------------------------
+
+    0x05, 0x01,
+
+    // --------------------------------------------------------
+    // Usage: Game Pad
+    // --------------------------------------------------------
+
+    0x09, 0x05,
+
+    // --------------------------------------------------------
+    // Application Collection
+    // --------------------------------------------------------
+
+    0xA1, 0x01,
+
+    // --------------------------------------------------------
+    // End Collection
+    // --------------------------------------------------------
+
+    0xC0
+};
+
+
+// ============================================================
 // begin()
 // ============================================================
 
 bool SwitchProHID::begin()
 {
-    ESP_LOGI(TAG, "========================================");
-    ESP_LOGI(TAG, "SwitchProESP32");
-    ESP_LOGI(TAG, "Bluetooth initialization");
-    ESP_LOGI(TAG, "========================================");
+    ESP_LOGI(
+        TAG,
+        "========================================"
+    );
+
+    ESP_LOGI(
+        TAG,
+        "SwitchProESP32"
+    );
+
+    ESP_LOGI(
+        TAG,
+        "Bluetooth HID initialization"
+    );
+
+    ESP_LOGI(
+        TAG,
+        "========================================"
+    );
 
 
     // --------------------------------------------------------
@@ -48,7 +162,10 @@ bool SwitchProHID::begin()
 
     if (!initBluetoothController())
     {
-        ESP_LOGE(TAG, "Bluetooth controller initialization failed");
+        ESP_LOGE(
+            TAG,
+            "Bluetooth controller initialization failed"
+        );
 
         return false;
     }
@@ -60,17 +177,39 @@ bool SwitchProHID::begin()
 
     if (!initBluedroid())
     {
-        ESP_LOGE(TAG, "Bluedroid initialization failed");
+        ESP_LOGE(
+            TAG,
+            "Bluedroid initialization failed"
+        );
 
         return false;
     }
 
 
     // --------------------------------------------------------
-    // Bluetooth listo
+    // 3. HID
     // --------------------------------------------------------
 
-    ESP_LOGI(TAG, "Bluetooth Classic: READY");
+    if (!initHID())
+    {
+        ESP_LOGE(
+            TAG,
+            "Bluetooth HID initialization failed"
+        );
+
+        return false;
+    }
+
+
+    // --------------------------------------------------------
+    // HID listo
+    // --------------------------------------------------------
+
+    ESP_LOGI(
+        TAG,
+        "Bluetooth HID: READY"
+    );
+
 
     return true;
 }
@@ -82,11 +221,14 @@ bool SwitchProHID::begin()
 
 bool SwitchProHID::initBluetoothController()
 {
-    ESP_LOGI(TAG, "Initializing Bluetooth controller...");
+    ESP_LOGI(
+        TAG,
+        "Initializing Bluetooth controller..."
+    );
 
 
     // --------------------------------------------------------
-    // Configuración por defecto del controlador
+    // Configuración por defecto del Bluetooth Controller
     // --------------------------------------------------------
 
     esp_bt_controller_config_t btConfig =
@@ -94,7 +236,7 @@ bool SwitchProHID::initBluetoothController()
 
 
     // --------------------------------------------------------
-    // Inicializar controlador
+    // Inicializar Controller
     // --------------------------------------------------------
 
     esp_err_t result =
@@ -113,7 +255,10 @@ bool SwitchProHID::initBluetoothController()
     }
 
 
-    ESP_LOGI(TAG, "Bluetooth controller: OK");
+    ESP_LOGI(
+        TAG,
+        "Bluetooth controller: OK"
+    );
 
 
     // --------------------------------------------------------
@@ -121,7 +266,9 @@ bool SwitchProHID::initBluetoothController()
     // --------------------------------------------------------
 
     result =
-        esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT);
+        esp_bt_controller_enable(
+            ESP_BT_MODE_CLASSIC_BT
+        );
 
 
     if (result != ESP_OK)
@@ -136,7 +283,11 @@ bool SwitchProHID::initBluetoothController()
     }
 
 
-    ESP_LOGI(TAG, "Bluetooth Classic enabled");
+    ESP_LOGI(
+        TAG,
+        "Bluetooth Classic enabled"
+    );
+
 
     return true;
 }
@@ -148,7 +299,10 @@ bool SwitchProHID::initBluetoothController()
 
 bool SwitchProHID::initBluedroid()
 {
-    ESP_LOGI(TAG, "Initializing Bluedroid...");
+    ESP_LOGI(
+        TAG,
+        "Initializing Bluedroid..."
+    );
 
 
     // --------------------------------------------------------
@@ -171,7 +325,10 @@ bool SwitchProHID::initBluedroid()
     }
 
 
-    ESP_LOGI(TAG, "Bluedroid initialized");
+    ESP_LOGI(
+        TAG,
+        "Bluedroid initialized"
+    );
 
 
     // --------------------------------------------------------
@@ -194,7 +351,173 @@ bool SwitchProHID::initBluedroid()
     }
 
 
-    ESP_LOGI(TAG, "Bluedroid enabled");
+    ESP_LOGI(
+        TAG,
+        "Bluedroid enabled"
+    );
+
+
+    return true;
+}
+
+
+// ============================================================
+// initHID()
+// ============================================================
+
+bool SwitchProHID::initHID()
+{
+    ESP_LOGI(
+        TAG,
+        "Initializing Bluetooth HID Device..."
+    );
+
+
+    // --------------------------------------------------------
+    // 1. Registrar callback HID
+    // --------------------------------------------------------
+
+    esp_err_t result =
+        esp_bt_hid_device_register_callback(
+            hidCallback
+        );
+
+
+    if (result != ESP_OK)
+    {
+        ESP_LOGE(
+            TAG,
+            "esp_bt_hid_device_register_callback failed: %s",
+            esp_err_to_name(result)
+        );
+
+        return false;
+    }
+
+
+    ESP_LOGI(
+        TAG,
+        "HID callback registered"
+    );
+
+
+    // --------------------------------------------------------
+    // 2. Inicializar HID Device
+    // --------------------------------------------------------
+
+    result =
+        esp_bt_hid_device_init();
+
+
+    if (result != ESP_OK)
+    {
+        ESP_LOGE(
+            TAG,
+            "esp_bt_hid_device_init failed: %s",
+            esp_err_to_name(result)
+        );
+
+        return false;
+    }
+
+
+    ESP_LOGI(
+        TAG,
+        "HID Device initialized"
+    );
+
+
+    // --------------------------------------------------------
+    // 3. Parámetros de la aplicación HID
+    // --------------------------------------------------------
+
+    esp_hidd_app_param_t appParam{};
+
+
+    appParam.name =
+        const_cast<char*>(
+            "SwitchProESP32"
+        );
+
+
+    appParam.description =
+        const_cast<char*>(
+            "Nintendo Switch Controller"
+        );
+
+
+    appParam.provider =
+        const_cast<char*>(
+            "SwitchProESP32"
+        );
+
+
+    // --------------------------------------------------------
+    // Subclass
+    // --------------------------------------------------------
+    //
+    // 0x04 = Game Pad
+    //
+    // IMPORTANTE:
+    // Todavía no estamos afirmando que esto sea un
+    // Nintendo Switch Pro Controller.
+    //
+    // La identidad definitiva vendrá después.
+    // --------------------------------------------------------
+
+    appParam.subclass = 0x04;
+
+
+    // --------------------------------------------------------
+    // Report Map
+    // --------------------------------------------------------
+
+    appParam.desc_list =
+        hidReportMap;
+
+
+    appParam.desc_list_len =
+        sizeof(hidReportMap);
+
+
+    // --------------------------------------------------------
+    // 4. QoS
+    // --------------------------------------------------------
+
+    esp_hidd_qos_param_t inQos{};
+
+    esp_hidd_qos_param_t outQos{};
+
+
+    // --------------------------------------------------------
+    // 5. Registrar aplicación HID
+    // --------------------------------------------------------
+
+    result =
+        esp_bt_hid_device_register_app(
+            &appParam,
+            &inQos,
+            &outQos
+        );
+
+
+    if (result != ESP_OK)
+    {
+        ESP_LOGE(
+            TAG,
+            "esp_bt_hid_device_register_app failed: %s",
+            esp_err_to_name(result)
+        );
+
+        return false;
+    }
+
+
+    ESP_LOGI(
+        TAG,
+        "HID application registered"
+    );
+
 
     return true;
 }
@@ -207,10 +530,9 @@ bool SwitchProHID::initBluedroid()
 void SwitchProHID::update()
 {
     // --------------------------------------------------------
-    // En esta etapa todavía no necesitamos realizar ninguna
-    // actualización periódica.
+    // En esta etapa todavía no enviamos reportes HID.
     //
-    // El Bluetooth Controller y Bluedroid funcionan mediante
-    // sus propios eventos internos de ESP-IDF.
+    // Los eventos Bluetooth/HID son manejados mediante
+    // callbacks.
     // --------------------------------------------------------
 }

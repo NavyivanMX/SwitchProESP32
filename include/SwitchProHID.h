@@ -2,24 +2,10 @@
 // SwitchProESP32
 // ------------------------------------------------------------
 // Archivo : SwitchProHID.h
-// Función : Capa de Bluetooth / HID del controlador.
+// Función : Capa Bluetooth HID.
 //
-// ETAPA 5.4
-//   Inicialización de Bluetooth Classic.
-//
-// En esta etapa:
-//
-//   - Inicializamos el controlador Bluetooth.
-//   - Habilitamos Bluetooth Classic.
-//   - Inicializamos Bluedroid.
-//   - Habilitamos Bluedroid.
-//
-// Todavía NO:
-//
-//   - Inicializamos HID.
-//   - Creamos descriptor HID.
-//   - Enviamos reportes.
-//   - Intentamos conectar con Nintendo Switch.
+// ETAPA 5.5
+//   Inicialización de Bluetooth HID.
 // ============================================================
 
 #pragma once
@@ -30,7 +16,7 @@ class SwitchProHID
 public:
 
     // --------------------------------------------------------
-    // Inicialización del sistema Bluetooth
+    // Inicialización
     // --------------------------------------------------------
 
     bool begin();
@@ -46,15 +32,17 @@ public:
 private:
 
     // --------------------------------------------------------
-    // Inicialización del controlador Bluetooth
+    // Bluetooth
     // --------------------------------------------------------
 
     bool initBluetoothController();
 
-
-    // --------------------------------------------------------
-    // Inicialización de Bluedroid
-    // --------------------------------------------------------
-
     bool initBluedroid();
+
+
+    // --------------------------------------------------------
+    // HID
+    // --------------------------------------------------------
+
+    bool initHID();
 };
