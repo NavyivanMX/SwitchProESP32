@@ -1,0 +1,6 @@
+#
+# SwitchProESP32
+# Configuración base de ESP-IDF
+#
+
+CONFIG_FREERTOS_HZ=1000

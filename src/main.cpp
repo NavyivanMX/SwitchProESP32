@@ -1,61 +1,34 @@
-#include <Arduino.h>
+// ============================================================
+// SwitchProESP32
+// ------------------------------------------------------------
+// Archivo : main.cpp
+// Función : Punto de entrada principal del firmware.
+//
+// Framework:
+//   ESP-IDF
+//
+// En ESP-IDF la aplicación comienza en:
+//
+//   app_main()
+//
+// No utilizamos Arduino setup()/loop().
+// ============================================================
 
 #include "SwitchProController.h"
 
-SwitchProController switchController;
 
-void setup()
+// ============================================================
+// app_main()
+// ============================================================
+
+extern "C" void app_main()
 {
-    Serial.begin(115200);
+    SwitchProController controller;
 
-    delay(1000);
+    controller.begin();
 
-    Serial.println();
-    Serial.println("========================================");
-    Serial.println("          SwitchProESP32");
-    Serial.println("========================================");
-    Serial.println("Hardware : ESP32-WROOM-32");
-    Serial.println("Board    : DOIT ESP32 DEVKIT V1");
-    Serial.println("Framework: PlatformIO / Arduino + ESP-IDF");
-    Serial.println("========================================");
-    Serial.println();
-
-    if (!switchController.begin())
+    while (true)
     {
-        Serial.println();
-        Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        Serial.println("ERROR: No se pudo iniciar el controlador");
-        Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-
-        return;
+        controller.update();
     }
-
-    Serial.println();
-    Serial.println("Controlador Bluetooth inicializado.");
-    Serial.println("Esperando Nintendo Switch...");
-    Serial.println();
-}
-
-void loop()
-{
-    switchController.update();
-
-    static unsigned long lastStatus = 0;
-
-    if (millis() - lastStatus >= 2000)
-    {
-        lastStatus = millis();
-
-        Serial.printf(
-            "[STATUS] Connected: %s | Handshake: %s\n",
-            switchController.isConnected()
-                ? "YES"
-                : "NO",
-            switchController.isHandshakeComplete()
-                ? "YES"
-                : "NO"
-        );
-    }
-
-    delay(10);
 }

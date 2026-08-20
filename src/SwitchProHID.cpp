@@ -1,11 +1,14 @@
 // ============================================================
 // SwitchProESP32
 // ------------------------------------------------------------
-// Archivo : SwitchProController.cpp
-// Función : Orquestador principal del sistema.
+// Archivo : SwitchProHID.cpp
+// Función : Implementación base de la capa HID.
+//
+// Esta versión NO inicializa Bluetooth todavía.
+//
+// Objetivo:
+//   Obtener un Build completamente limpio con ESP-IDF puro.
 // ============================================================
-
-#include "SwitchProController.h"
 
 #include "SwitchProHID.h"
 
@@ -14,13 +17,9 @@
 // begin()
 // ============================================================
 
-bool SwitchProController::begin()
+bool SwitchProHID::begin()
 {
-    static SwitchProHID hid;
-
-    m_hid = &hid;
-
-    return m_hid->begin();
+    return true;
 }
 
 
@@ -28,10 +27,10 @@ bool SwitchProController::begin()
 // update()
 // ============================================================
 
-void SwitchProController::update()
+void SwitchProHID::update()
 {
-    if (m_hid != nullptr)
-    {
-        m_hid->update();
-    }
+    // --------------------------------------------------------
+    // La implementación Bluetooth HID se agregará en la
+    // siguiente etapa.
+    // --------------------------------------------------------
 }
